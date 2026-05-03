@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <title>Rafael File Uploader</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .dropzone.dragover {
+      border-color: #3b82f6; /* blue-500 */
+      background-color: #eff6ff; /* blue-50 */
+    }
+    /* Animasi loading sederhana */
+    .loader {
+      border: 3px solid #f3f3f3; border-top: 3px solid #3b82f6;
+      border-radius: 50%; width: 16px; height: 16px;
+      animation: spin 1s linear infinite; display: inline-block; vertical-align: middle; margin-right: 8px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  </style>
+</head>
+<body class="bg-gray-50 flex flex-col min-h-screen text-gray-800">
+
+  <main class="flex-grow flex flex-col items-center justify-center p-4 sm:p-8">
+    
+    <div class="bg-white w-full max-w-lg rounded-2xl shadow-sm border border-gray-100 p-8">
+      
+      <div class="text-center mb-8">
+        <h1 class="text-2xl font-bold text-gray-900">Rafael Uploader</h1>
+        <p class="text-sm text-gray-500 mt-1">Upload Dan Bagikan Fotomu Dengan Link</p>
+      </div>
+
+      <form id="uploadForm" enctype="multipart/form-data">
+        <div id="dropzone" class="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center transition-colors cursor-pointer hover:bg-gray-50">
+          
+          <svg class="mx-auto h-12 w-12 text-gray-400 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+          </svg>
+          
+          <p class="text-sm font-medium text-gray-700">Tarik & lepas file ke sini</p>
+          <p class="text-xs text-gray-400 mt-1">atau klik untuk memilih dari komputer</p>
+          <p class="text-xs font-semibold text-blue-500 mt-3">Maksimal 25 MB</p>
+          
+          <input id="fileInput" type="file" name="file" class="hidden" required>
+          <div id="preview" class="mt-4"></div>
+        </div>
+
+        <button type="submit" id="submitBtn" class="w-full mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-xl transition-colors shadow-sm disabled:bg-blue-300 disabled:cursor-not-allowed">
+          Mulai Upload
+        </button>
+      </form>
+
+      <div class="text-center mt-6 min-h-[60px]">
+        <div id="result" class="text-sm mb-3"></div>
+        <button id="copyBtn" class="hidden mx-auto bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium py-2 px-4 rounded-lg transition-colors border border-gray-200 text-sm">
+          Salin URL CDN
+        </button>
+      </div>
+
+    </div>
+
+  </main>
+
+  <footer class="text-center text-sm text-gray-400 p-6">
+    &copy; 2026 Rafael CDN. All rights reserved.
+  </footer>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+    const result = document.getElementById('result');
+    const copyBtn = document.getElementById('copyBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+
+    // Event Listener Drag & Drop
+    dropzone.addEventListener('click', () => fileInput.click());
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
+    dropzone.addEventListener('drop', e => {
+      e.preventDefault();
+      dropzone.classList.remove('dragover');
+      fileInput.files = e.dataTransfer.files;
+      handlePreview(fileInput.files[0]);
+    });
+
+    fileInput.addEventListener('change', () => {
+      handlePreview(fileInput.files[0]);
+    });
+
+    // Handle Preview UI
+    function handlePreview(file) {
+      preview.innerHTML = '';
+      if (!file) return;
+
+      if (file.size > MAX_FILE_SIZE) {
+        preview.innerHTML = `<p class="text-red-500 text-xs mt-3 font-medium">⚠️ Ukuran melebihi batas 25MB.</p>`;
+        return;
+      }
+
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          preview.innerHTML = `<img src="${reader.result}" class="w-32 h-32 mx-auto rounded-lg object-cover mt-4 shadow-sm border border-gray-200">`;
+        };
+        reader.readAsDataURL(file);
+      } else {
+        preview.innerHTML = `
+          <div class="mt-4 p-3 bg-gray-50 rounded-lg border border-gray-200 inline-block">
+            <p class="text-sm font-medium text-gray-700">📄 ${file.name}</p>
+            <p class="text-xs text-gray-500">${(file.size / 1024).toFixed(1)} KB</p>
+          </div>`;
+      }
+    }
+
+    // Submit Form
+    document.getElementById('uploadForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      if (file.size > MAX_FILE_SIZE) {
+        result.innerHTML = `<span class="text-red-500 font-medium">File terlalu besar!</span>`;
+        return;
+      }
+
+      const form = new FormData();
+      form.append('file', file);
+
+      // Loading State
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = `<span class="loader"></span> Mengunggah...`;
+      result.innerHTML = '';
+      copyBtn.classList.add('hidden');
+
+      try {
+        const res = await fetch('/api/upload', { method: 'POST', body: form });
+        const data = await res.json();
+
+        if (res.ok && data.file && data.file.cdnUrl) {
+          const fileUrl = data.file.cdnUrl;
+          result.innerHTML = `
+            <p class="text-green-600 font-medium mb-1">✅ Upload Berhasil!</p>
+            <a href="${fileUrl}" target="_blank" class="text-blue-500 hover:underline text-xs break-all bg-blue-50 py-1 px-2 rounded block w-full truncate">
+              ${fileUrl}
+            </a>`;
+          
+          copyBtn.classList.remove('hidden');
+          copyBtn.textContent = 'Salin URL CDN';
+          copyBtn.onclick = () => {
+            navigator.clipboard.writeText(fileUrl);
+            copyBtn.textContent = 'Tersalin! ✓';
+            copyBtn.classList.replace('bg-gray-100', 'bg-green-100');
+            copyBtn.classList.replace('text-gray-700', 'text-green-700');
+            setTimeout(() => {
+              copyBtn.textContent = 'Salin URL CDN';
+              copyBtn.classList.replace('bg-green-100', 'bg-gray-100');
+              copyBtn.classList.replace('text-green-700', 'text-gray-700');
+            }, 2000);
+          };
+          
+          // Reset form otomatis setelah 3 detik
+          setTimeout(() => {
+              document.getElementById('uploadForm').reset();
+              preview.innerHTML = '';
+              result.innerHTML = '';
+              copyBtn.classList.add('hidden');
+          }, 4000);
+
+        } else {
+          result.innerHTML = `<span class="text-red-500 font-medium">Gagal: ${data.error || 'Terjadi kesalahan'}</span>`;
+        }
+      } catch (err) {
+        result.innerHTML = `<span class="text-red-500 font-medium">Upload gagal. Periksa koneksi internet.</span>`;
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = `Mulai Upload`;
+      }
+    };
+  </script>
+</body>
+</html>

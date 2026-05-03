@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - CDN Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+
+    <div class="max-w-4xl mx-auto p-4 sm:p-8">
+        
+        <div class="bg-white border-t-4 border-red-500 rounded-2xl shadow-sm p-6 mb-8 flex flex-col sm:flex-row justify-between items-center gap-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 flex items-center">
+                    <svg class="w-7 h-7 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                    Admin Dashboard
+                </h1>
+                <p class="text-sm text-gray-500 mt-1">Hanya untuk Admin. Masukkan password untuk mengelola data.</p>
+            </div>
+            
+            <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <input type="password" id="adminPassword" placeholder="🔑 Password Admin" class="border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 w-full sm:w-48 transition-all">
+                
+                <button id="deleteAllBtn" class="bg-red-600 hover:bg-red-700 text-white font-medium py-2.5 px-4 rounded-xl transition-colors text-sm flex items-center justify-center shadow-sm whitespace-nowrap">
+                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    Hapus Semua Data
+                </button>
+            </div>
+        </div>
+
+        <p id="globalStatus" class="text-center text-sm font-medium mb-6 min-h-[20px]"></p>
+
+        <h2 class="text-lg font-bold text-gray-800 mb-4">Manajemen File Spesifik</h2>
+
+        <div id="fileList" class="space-y-3">
+            <div class="bg-white rounded-2xl border border-gray-100 p-10 text-center shadow-sm">
+                <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-red-600 mb-3"></div>
+                <p class="text-gray-500 text-sm font-medium">Memuat data admin...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const fileList = document.getElementById('fileList');
+        const adminPasswordInput = document.getElementById('adminPassword');
+        const deleteAllBtn = document.getElementById('deleteAllBtn');
+        const globalStatus = document.getElementById('globalStatus');
+
+        // Fungsi Memuat Daftar File
+        async function fetchFiles() {
+            try {
+                const response = await fetch('/api/files');
+                const files = await response.json();
+                
+                fileList.innerHTML = ''; 
+                
+                if (files.length === 0) {
+                    fileList.innerHTML = `
+                        <div class="bg-white rounded-2xl border border-gray-100 p-12 text-center shadow-sm flex flex-col items-center">
+                            <p class="text-gray-500 text-sm font-medium">Sistem bersih. Tidak ada file di CDN saat ini.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                files.forEach(file => {
+                    const isImage = file.mimetype.startsWith('image/');
+                    const dateObj = new Date(file.uploadedAt);
+                    const dateStr = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const sizeKB = (file.size / 1024).toFixed(1);
+
+                    const thumbnailHtml = isImage 
+                        ? `<img src="${file.cdnUrl}" class="w-12 h-12 rounded-lg object-cover border border-gray-100 bg-gray-50">` 
+                        : `<div class="w-12 h-12 rounded-lg bg-gray-100 text-gray-500 flex items-center justify-center text-xl border border-gray-200">📄</div>`;
+
+                    const fileHtml = `
+                        <div class="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:border-red-200 transition-all duration-300" id="row-${file.cdnName}">
+                            
+                            <div class="flex items-center flex-1 min-w-0 pr-4">
+                                <div class="flex-shrink-0 mr-4">
+                                    ${thumbnailHtml}
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <span class="text-sm font-semibold text-gray-900 truncate block">
+                                        ${file.originalName}
+                                    </span>
+                                    <div class="flex flex-wrap items-center mt-1 text-xs text-gray-500 gap-x-3">
+                                        <span class="font-medium">${sizeKB} KB</span>
+                                        <span>•</span>
+                                        <span>${dateStr}</span>
+                                        <span>•</span>
+                                        <a href="${file.cdnUrl}" target="_blank" class="text-blue-500 hover:underline">Lihat File</a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex-shrink-0">
+                                <button onclick="deleteSingleFile('${file.cdnName}', this)" class="bg-white hover:bg-red-50 border border-gray-200 hover:border-red-200 text-gray-500 hover:text-red-600 font-medium py-2 px-3 rounded-lg text-sm transition-colors flex items-center focus:outline-none">
+                                    <svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    Hapus
+                                </button>
+                            </div>
+
+                        </div>
+                    `;
+                    fileList.insertAdjacentHTML('beforeend', fileHtml);
+                });
+            } catch (error) {
+                fileList.innerHTML = `<div class="bg-red-50 text-red-500 rounded-2xl p-6 text-center text-sm font-medium">❌ Gagal memuat data.</div>`;
+            }
+        }
+
+        // --- FUNGSI: Hapus Satu File ---
+        async function deleteSingleFile(filename, btnElement) {
+            const password = adminPasswordInput.value.trim();
+            if (!password) {
+                showStatus('⚠️ Silakan masukkan Password Admin di kotak atas terlebih dahulu!', 'text-orange-500');
+                adminPasswordInput.focus();
+                return;
+            }
+
+            const confirmDelete = confirm('Hapus file ini permanen?');
+            if (!confirmDelete) return;
+
+            const originalHtml = btnElement.innerHTML;
+            btnElement.innerHTML = `<div class="animate-spin h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full mr-1.5"></div> Proses...`;
+            btnElement.disabled = true;
+
+            try {
+                const response = await fetch(`/api/file/${filename}`, {
+                    method: 'DELETE',
+                    headers: { 'x-admin-key': password }
+                });
+                
+                const result = await response.json();
+
+                if (response.ok) {
+                    const fileRow = document.getElementById(`row-${filename}`);
+                    fileRow.style.opacity = '0';
+                    fileRow.style.transform = 'translateY(10px)';
+                    setTimeout(() => {
+                        fileRow.remove();
+                        // Cek jika kosong
+                        if (fileList.children.length === 0) fetchFiles();
+                    }, 300);
+                    showStatus('✅ Berhasil menghapus file.', 'text-green-600');
+                } else {
+                    showStatus('❌ Gagal: ' + (result.error || 'Password Salah'), 'text-red-600');
+                    btnElement.innerHTML = originalHtml;
+                    btnElement.disabled = false;
+                }
+            } catch (error) {
+                showStatus('❌ Kesalahan jaringan.', 'text-red-600');
+                btnElement.innerHTML = originalHtml;
+                btnElement.disabled = false;
+            }
+        }
+
+        // --- FUNGSI: Hapus Semua File ---
+        deleteAllBtn.addEventListener('click', async () => {
+            const password = adminPasswordInput.value.trim();
+            if (!password) {
+                showStatus('⚠️ Silakan masukkan Password Admin terlebih dahulu!', 'text-orange-500');
+                adminPasswordInput.focus();
+                return;
+            }
+
+            const confirmDelete = confirm('🚨 PERINGATAN BAHAYA!\n\nApakah Anda benar-benar yakin ingin menghapus SEMUA file CDN? Tindakan ini tidak bisa dibatalkan!');
+            if (!confirmDelete) return;
+
+            deleteAllBtn.innerHTML = `<div class="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div> Menghapus...`;
+            deleteAllBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/secret-delete-all', {
+                    method: 'DELETE',
+                    headers: { 'x-admin-key': password }
+                });
+                
+                const result = await response.json();
+
+                if (response.ok) {
+                    showStatus(result.message, 'text-green-600');
+                    fetchFiles(); // Refresh daftar jadi kosong
+                } else {
+                    showStatus('❌ ' + (result.error || 'Password Salah'), 'text-red-600');
+                }
+            } catch (error) {
+                showStatus('❌ Terjadi kesalahan jaringan.', 'text-red-600');
+            } finally {
+                deleteAllBtn.innerHTML = `<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Hapus Semua Data`;
+                deleteAllBtn.disabled = false;
+            }
+        });
+
+        // Helper: Tampilkan status di bawah header
+        function showStatus(text, colorClass) {
+            globalStatus.textContent = text;
+            globalStatus.className = `text-center text-sm font-medium mb-6 min-h-[20px] transition-opacity ${colorClass}`;
+            setTimeout(() => { globalStatus.textContent = ''; }, 4000); // Hilang setelah 4 detik
+        }
+
+        // Load data awal
+        fetchFiles();
+    </script>
+
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galeri CDN</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 min-h-screen">
+
+    <div class="max-w-4xl mx-auto p-4 sm:p-8">
+        
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-8 gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">Daftar File</h1>
+                <p class="text-sm text-gray-500 mt-1">Manajemen file CDN Anda</p>
+            </div>
+            <a href="/" class="inline-flex items-center justify-center bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:text-blue-600 font-medium py-2.5 px-4 rounded-xl shadow-sm transition-colors text-sm">
+                <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                Kembali ke Upload
+            </a>
+        </div>
+
+        <div id="fileList" class="space-y-3">
+            <div class="bg-white rounded-2xl border border-gray-100 p-10 text-center shadow-sm">
+                <div class="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mb-3"></div>
+                <p class="text-gray-500 text-sm font-medium">Memuat file dari server...</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const fileList = document.getElementById('fileList');
+
+        async function fetchFiles() {
+            try {
+                const response = await fetch('/api/files');
+                const files = await response.json();
+                
+                fileList.innerHTML = ''; 
+                
+                if (files.length === 0) {
+                    fileList.innerHTML = `
+                        <div class="bg-white rounded-2xl border border-gray-100 p-12 text-center shadow-sm flex flex-col items-center">
+                            <svg class="w-12 h-12 text-gray-300 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                            <p class="text-gray-500 text-sm font-medium">Belum ada file yang diunggah.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                files.forEach(file => {
+                    const isImage = file.mimetype.startsWith('image/');
+                    
+                    // Format Tanggal dan Jam secara rapi
+                    const dateObj = new Date(file.uploadedAt);
+                    const dateStr = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
+                    const timeStr = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+                    const sizeKB = (file.size / 1024).toFixed(1);
+
+                    // Thumbnail: Jika gambar tampilkan gambarnya, jika tidak tampilkan ikon dokumen
+                    const thumbnailHtml = isImage 
+                        ? `<img src="${file.cdnUrl}" alt="${file.originalName}" class="w-16 h-16 rounded-lg object-cover border border-gray-100 bg-gray-50">` 
+                        : `<div class="w-16 h-16 rounded-lg bg-blue-50 text-blue-500 flex items-center justify-center text-2xl border border-blue-100 shadow-inner">📄</div>`;
+
+                    // HTML untuk 1 baris file
+                    const fileHtml = `
+                        <div class="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow group">
+                            
+                            <div class="flex items-center flex-1 min-w-0 pr-4">
+                                <div class="flex-shrink-0 mr-4">
+                                    ${thumbnailHtml}
+                                </div>
+
+                                <div class="flex-1 min-w-0">
+                                    <a href="${file.cdnUrl}" target="_blank" class="text-sm font-semibold text-gray-900 truncate block hover:text-blue-600 transition-colors">
+                                        ${file.originalName}
+                                    </a>
+                                    
+                                    <div class="flex flex-wrap items-center mt-1.5 text-xs text-gray-500 gap-x-3 gap-y-1">
+                                        <span class="flex items-center font-medium text-gray-600">
+                                            <svg class="w-3.5 h-3.5 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                                            ${sizeKB} KB
+                                        </span>
+                                        <span class="flex items-center">
+                                            <svg class="w-3.5 h-3.5 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                            ${dateStr}
+                                        </span>
+                                        <span class="flex items-center">
+                                            <svg class="w-3.5 h-3.5 mr-1 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                            ${timeStr} WIB
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex-shrink-0">
+                                <button onclick="copyToClipboard('${file.cdnUrl}', this)" class="bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 font-medium py-2 px-3 rounded-lg text-xs transition-colors flex items-center focus:outline-none focus:ring-2 focus:ring-blue-100">
+                                    <svg class="w-4 h-4 mr-1.5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                    Copy URL
+                                </button>
+                            </div>
+
+                        </div>
+                    `;
+                    fileList.insertAdjacentHTML('beforeend', fileHtml);
+                });
+            } catch (error) {
+                fileList.innerHTML = `
+                    <div class="bg-red-50 text-red-500 rounded-2xl border border-red-100 p-6 text-center text-sm font-medium shadow-sm">
+                        ❌ Gagal memuat file dari server.
+                    </div>`;
+                console.error('Gagal memuat file:', error);
+            }
+        }
+
+        // Fungsi Copy URL dengan efek visual (Berubah menjadi hijau "Copied!")
+        function copyToClipboard(url, btnElement) {
+            navigator.clipboard.writeText(url).then(() => {
+                const originalHtml = btnElement.innerHTML;
+                
+                // Ubah gaya tombol menjadi sukses (hijau)
+                btnElement.innerHTML = `<svg class="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
+                btnElement.classList.replace('bg-gray-50', 'bg-green-50');
+                btnElement.classList.replace('hover:bg-gray-100', 'hover:bg-green-100');
+                btnElement.classList.replace('border-gray-200', 'border-green-200');
+                btnElement.classList.replace('text-gray-700', 'text-green-700');
+
+                // Kembalikan seperti semula setelah 2 detik
+                setTimeout(() => {
+                    btnElement.innerHTML = originalHtml;
+                    btnElement.classList.replace('bg-green-50', 'bg-gray-50');
+                    btnElement.classList.replace('hover:bg-green-100', 'hover:bg-gray-100');
+                    btnElement.classList.replace('border-green-200', 'border-gray-200');
+                    btnElement.classList.replace('text-green-700', 'text-gray-700');
+                }, 2000);
+            }).catch(err => {
+                alert('Gagal menyalin URL');
+            });
+        }
+
+        // Jalankan fungsi
+        fetchFiles();
+    </script>
+</body>
+</html>
