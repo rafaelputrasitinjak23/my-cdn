@@ -140,6 +140,10 @@ app.get('/files', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'files.html'));
 });
 
+app.get('/shorten', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'shorturl.html'));
+});
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
